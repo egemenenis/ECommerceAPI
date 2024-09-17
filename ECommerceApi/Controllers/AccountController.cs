@@ -132,7 +132,7 @@ namespace ECommerceApi.API.Controllers
             {
                 if (account.IsApplyment)
                 {
-                    response.AddError("*", "The payment has not been completed yet...");
+                    response.AddError("*", "The payment has not been completed yet.");
                     return BadRequest(response);
                 }
                 else
