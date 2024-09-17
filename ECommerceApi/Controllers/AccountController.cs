@@ -3,10 +3,10 @@ using ECommerceApi.API.DataAccess;
 using ECommerceApi.API.Entites;
 using ECommerceApi.Core.Controllers;
 using ECommerceApi.Core.Models;
-using ECommerceApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.IdentityModel.Tokens;
+using MyServices;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography.Xml;
@@ -120,6 +120,8 @@ namespace ECommerceApi.API.Controllers
 
 
         [HttpPost("authenticate")]
+        [ProducesResponseType(200, Type = typeof(Resp<AuthenticateResponseModel>))]
+        [ProducesResponseType(400, Type = typeof(Resp<AuthenticateResponseModel>))]
         public IActionResult Authenticate([FromBody] AuthenticateRequestModel model)
         {
             Resp<AuthenticateResponseModel> response = new Resp<AuthenticateResponseModel>();
@@ -137,7 +139,17 @@ namespace ECommerceApi.API.Controllers
                 }
                 else
                 {
-                    string token = TokenService.GenerateToken(account, _configuration);
+                    string key = _configuration["JwtOptions:Key"];
+
+                    List<Claim> claims = new List<Claim>
+                    {
+                        new Claim("id", account.Id.ToString()),
+                        new Claim("type", ((int)account.Type).ToString()),
+                        new Claim(ClaimTypes.Name, account.Username),
+                        new Claim(ClaimTypes.Role, account.Type.ToString()),
+                    };
+
+                    string token = TokenService.GenerateToken(key, DateTime.Now.AddDays(30), claims);
 
                     AuthenticateResponseModel data = new AuthenticateResponseModel { Token = token };
                     response.Data = data;
