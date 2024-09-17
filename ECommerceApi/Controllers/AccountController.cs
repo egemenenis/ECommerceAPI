@@ -24,6 +24,97 @@ namespace ECommerceApi.API.Controllers
         {
             _db = databaseContext;
         }
+
+
+        [HttpPost("merchant/applyment")]
+        [ProducesResponseType(200, Type = typeof(ApplymentAccountResponseModel))]
+        public IActionResult Applyment([FromBody] ApplymentAccountRequestModel model)
+        {
+            Resp<ApplymentAccountResponseModel> response = new Resp<ApplymentAccountResponseModel>();
+            if (ModelState.IsValid)
+            {
+                model.Username = model.Username?.Trim().ToLower();
+
+                if (_db.Accounts.Any(x => x.Username.ToLower() == model.Username))
+                {
+                    response.AddError(nameof(model.Username), "This username is already in use.");
+                    return BadRequest(response);
+                }
+                else
+                {
+                    Account account = new Account
+                    {
+                        Username = model.Username,
+                        Password = model.Password,
+                        CompanyName = model.CompanyName,
+                        ContactName = model.ContactName,
+                        ContactEmail = model.ContactEmail,
+                        Type = AccountType.Merchant,
+                        IsApplyment = true
+                    };
+                    _db.Accounts.Add(account);
+                    _db.SaveChanges();
+
+                    ApplymentAccountResponseModel applymentAccountResponseModel = new ApplymentAccountResponseModel
+                    {
+                        Id = account.Id,
+                        Username = account.Username,
+                        ContactName = account.ContactName,
+                        CompanyName = account.CompanyName,
+                        ContactEmail = account.ContactEmail
+                    };
+
+                    response.Data = applymentAccountResponseModel;
+                    return Ok(response);
+                }
+            }
+
+            List<string> errors = ModelState.Values.SelectMany(x => x.Errors.Select(y => y.ErrorMessage)).ToList();
+            return BadRequest(errors);
+        }
+
+
+
+        [HttpPost("register")]
+        [ProducesResponseType(200, Type = typeof(Resp<RegisterResponseModel>))]
+        [ProducesResponseType(400, Type = typeof(Resp<RegisterResponseModel>))]
+        public IActionResult Register([FromBody] RegisterRequestModel model)
+        {
+            Resp<RegisterResponseModel> response = new Resp<RegisterResponseModel>();
+            if (ModelState.IsValid)
+            {
+                model.Username = model.Username?.Trim().ToLower();
+
+                if (_db.Accounts.Any(x => x.Username.ToLower() == model.Username))
+                {
+                    response.AddError(nameof(model.Username), "This username is already in use.");
+                    return BadRequest(response);
+                }
+                else
+                {
+                    Account account = new Account
+                    {
+                        Username = model.Username,
+                        Password = model.Password,
+                        Type = AccountType.Member
+                    };
+                    _db.Accounts.Add(account);
+                    _db.SaveChanges();
+
+                    RegisterResponseModel data = new RegisterResponseModel
+                    {
+                        Id = account.Id,
+                        Username = account.Username
+                    };
+
+                    response.Data = data;
+                    return Ok(response);
+                }
+            }
+
+            List<string> errors = ModelState.Values.SelectMany(x => x.Errors.Select(y => y.ErrorMessage)).ToList();
+            return BadRequest(errors);
+        }
     }
 }
 
