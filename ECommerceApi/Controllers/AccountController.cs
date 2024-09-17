@@ -3,6 +3,7 @@ using ECommerceApi.API.DataAccess;
 using ECommerceApi.API.Entites;
 using ECommerceApi.Core.Controllers;
 using ECommerceApi.Core.Models;
+using ECommerceApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.IdentityModel.Tokens;
@@ -114,6 +115,41 @@ namespace ECommerceApi.API.Controllers
 
             List<string> errors = ModelState.Values.SelectMany(x => x.Errors.Select(y => y.ErrorMessage)).ToList();
             return BadRequest(errors);
+        }
+
+
+
+        [HttpPost("authenticate")]
+        public IActionResult Authenticate([FromBody] AuthenticateRequestModel model)
+        {
+            Resp<AuthenticateResponseModel> response = new Resp<AuthenticateResponseModel>();
+            model.Username = model.Username?.Trim().ToLower();
+
+            Account account = _db.Accounts.SingleOrDefault(
+                x => x.Username.ToLower() == model.Username && x.Password == model.Password);
+
+            if (account != null)
+            {
+                if (account.IsApplyment)
+                {
+                    response.AddError("*", "The payment has not been completed yet.");
+                    return BadRequest(response);
+                }
+                else
+                {
+                    string token = TokenService.GenerateToken(account, _configuration);
+
+                    AuthenticateResponseModel data = new AuthenticateResponseModel { Token = token };
+                    response.Data = data;
+
+                    return Ok(response);
+                }
+            }
+            else
+            {
+                response.AddError("*", "Username or password does not match.");
+                return BadRequest(response);
+            }
         }
     }
 }
