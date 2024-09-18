@@ -45,6 +45,7 @@ namespace ECommerceApi.API.Controllers
 
         [HttpGet("get/{id}")]
         [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
+        [ProducesResponseType(404, Type = typeof(Resp<CategoryModel>))]
         public IActionResult GetById([FromRoute] int id)
         {
             Resp<CategoryModel> response = new Resp<CategoryModel>();
@@ -52,15 +53,15 @@ namespace ECommerceApi.API.Controllers
             Category category = _db.Categories.SingleOrDefault(x => x.Id == id);
             CategoryModel data = null;
 
-            if (category != null)
+            if (category == null)
+                return NotFound(response);
+
+            data = new CategoryModel
             {
-                data = new CategoryModel
-                {
-                    Id = category.Id,
-                    Name = category.Name,
-                    Description = category.Description
-                };
-            }
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description
+            };
 
             response.Data = data;
 
@@ -104,137 +105,176 @@ namespace ECommerceApi.API.Controllers
                 return Ok(response);
             }
         }
+
+
+        [HttpPut("update/{id}")]
+        [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
+        [ProducesResponseType(400, Type = typeof(Resp<CategoryModel>))]
+        [ProducesResponseType(404, Type = typeof(Resp<CategoryModel>))]
+        public IActionResult Update([FromRoute] int id, [FromBody] CategoryUpdateModel model)
+        {
+            Resp<CategoryModel> response = new Resp<CategoryModel>();
+            Category category = _db.Categories.Find(id);
+
+            if (category == null)
+                return NotFound(response);
+
+            string categoryName = model.Name?.Trim().ToLower();
+
+            if (_db.Categories.Any(x => x.Name.ToLower() == categoryName && x.Id != id))
+            {
+                response.AddError(nameof(model.Name), "This category name already exists.");
+                return BadRequest(response);
+            }
+
+            category.Name = model.Name;
+            category.Description = model.Description;
+
+            _db.SaveChanges();
+
+            CategoryModel data = new CategoryModel
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description
+            };
+
+            response.Data = data;
+
+            return Ok(response);
+        }
+    }
+}
+
+
+[ApiController]
+[Route("[controller]")]
+public class AccountController : ControllerBase
+{
+    private DatabaseContext _db;
+    private IConfiguration _configuration;
+    public AccountController(DatabaseContext databaseContext, IConfiguration configuration)
+    {
+        _db = databaseContext;
     }
 
 
-    [ApiController]
-    [Route("[controller]")]
-    public class AccountController : ControllerBase
+    [HttpPost("merchant/applyment")]
+    [ProducesResponseType(200, Type = typeof(ApplymentAccountResponseModel))]
+    [ProducesResponseType(400, Type = typeof(Resp<ApplymentAccountResponseModel>))]
+    public IActionResult Applyment([FromBody] ApplymentAccountRequestModel model)
     {
-        private DatabaseContext _db;
-        private IConfiguration _configuration;
-        public AccountController(DatabaseContext databaseContext, IConfiguration configuration)
+        Resp<ApplymentAccountResponseModel> response = new Resp<ApplymentAccountResponseModel>();
+        if (ModelState.IsValid)
         {
-            _db = databaseContext;
-        }
-
-
-        [HttpPost("merchant/applyment")]
-        [ProducesResponseType(200, Type = typeof(ApplymentAccountResponseModel))]
-        [ProducesResponseType(400, Type = typeof(Resp<ApplymentAccountResponseModel>))]
-        public IActionResult Applyment([FromBody] ApplymentAccountRequestModel model)
-        {
-            Resp<ApplymentAccountResponseModel> response = new Resp<ApplymentAccountResponseModel>();
-            if (ModelState.IsValid)
-            {
-                model.Username = model.Username?.Trim().ToLower();
-
-                if (_db.Accounts.Any(x => x.Username.ToLower() == model.Username))
-                {
-                    response.AddError(nameof(model.Username), "This username is already in use.");
-                    return BadRequest(response);
-                }
-                else
-                {
-                    Account account = new Account
-                    {
-                        Username = model.Username,
-                        Password = model.Password,
-                        CompanyName = model.CompanyName,
-                        ContactName = model.ContactName,
-                        ContactEmail = model.ContactEmail,
-                        Type = AccountType.Merchant,
-                        IsApplyment = true
-                    };
-                    _db.Accounts.Add(account);
-                    _db.SaveChanges();
-
-                    ApplymentAccountResponseModel applymentAccountResponseModel = new ApplymentAccountResponseModel
-                    {
-                        Id = account.Id,
-                        Username = account.Username,
-                        ContactName = account.ContactName,
-                        CompanyName = account.CompanyName,
-                        ContactEmail = account.ContactEmail
-                    };
-
-                    response.Data = applymentAccountResponseModel;
-                    return Ok(response);
-                }
-            }
-
-            List<string> errors = ModelState.Values.SelectMany(x => x.Errors.Select(y => y.ErrorMessage)).ToList();
-            return BadRequest(errors);
-        }
-
-
-
-        [HttpPost("register")]
-        [ProducesResponseType(200, Type = typeof(Resp<RegisterResponseModel>))]
-        [ProducesResponseType(400, Type = typeof(Resp<RegisterResponseModel>))]
-        public IActionResult Register([FromBody] RegisterRequestModel model)
-        {
-            Resp<RegisterResponseModel> response = new Resp<RegisterResponseModel>();
-            if (ModelState.IsValid)
-            {
-                model.Username = model.Username?.Trim().ToLower();
-
-                if (_db.Accounts.Any(x => x.Username.ToLower() == model.Username))
-                {
-                    response.AddError(nameof(model.Username), "This username is already in use.");
-                    return BadRequest(response);
-                }
-                else
-                {
-                    Account account = new Account
-                    {
-                        Username = model.Username,
-                        Password = model.Password,
-                        Type = AccountType.Member
-                    };
-                    _db.Accounts.Add(account);
-                    _db.SaveChanges();
-
-                    RegisterResponseModel data = new RegisterResponseModel
-                    {
-                        Id = account.Id,
-                        Username = account.Username
-                    };
-
-                    response.Data = data;
-                    return Ok(response);
-                }
-            }
-
-            List<string> errors = ModelState.Values.SelectMany(x => x.Errors.Select(y => y.ErrorMessage)).ToList();
-            return BadRequest(errors);
-        }
-
-
-
-        [HttpPost("authenticate")]
-        [ProducesResponseType(200, Type = typeof(Resp<AuthenticateResponseModel>))]
-        [ProducesResponseType(400, Type = typeof(Resp<AuthenticateResponseModel>))]
-        public IActionResult Authenticate([FromBody] AuthenticateRequestModel model)
-        {
-            Resp<AuthenticateResponseModel> response = new Resp<AuthenticateResponseModel>();
             model.Username = model.Username?.Trim().ToLower();
 
-            Account account = _db.Accounts.SingleOrDefault(
-                x => x.Username.ToLower() == model.Username && x.Password == model.Password);
-
-            if (account != null)
+            if (_db.Accounts.Any(x => x.Username.ToLower() == model.Username))
             {
-                if (account.IsApplyment)
+                response.AddError(nameof(model.Username), "This username is already in use.");
+                return BadRequest(response);
+            }
+            else
+            {
+                Account account = new Account
                 {
-                    response.AddError("*", "The payment has not been completed yet.");
-                    return BadRequest(response);
-                }
-                else
-                {
-                    string key = _configuration["JwtOptions:Key"];
+                    Username = model.Username,
+                    Password = model.Password,
+                    CompanyName = model.CompanyName,
+                    ContactName = model.ContactName,
+                    ContactEmail = model.ContactEmail,
+                    Type = AccountType.Merchant,
+                    IsApplyment = true
+                };
+                _db.Accounts.Add(account);
+                _db.SaveChanges();
 
-                    List<Claim> claims = new List<Claim>
+                ApplymentAccountResponseModel applymentAccountResponseModel = new ApplymentAccountResponseModel
+                {
+                    Id = account.Id,
+                    Username = account.Username,
+                    ContactName = account.ContactName,
+                    CompanyName = account.CompanyName,
+                    ContactEmail = account.ContactEmail
+                };
+
+                response.Data = applymentAccountResponseModel;
+                return Ok(response);
+            }
+        }
+
+        List<string> errors = ModelState.Values.SelectMany(x => x.Errors.Select(y => y.ErrorMessage)).ToList();
+        return BadRequest(errors);
+    }
+
+
+
+    [HttpPost("register")]
+    [ProducesResponseType(200, Type = typeof(Resp<RegisterResponseModel>))]
+    [ProducesResponseType(400, Type = typeof(Resp<RegisterResponseModel>))]
+    public IActionResult Register([FromBody] RegisterRequestModel model)
+    {
+        Resp<RegisterResponseModel> response = new Resp<RegisterResponseModel>();
+        if (ModelState.IsValid)
+        {
+            model.Username = model.Username?.Trim().ToLower();
+
+            if (_db.Accounts.Any(x => x.Username.ToLower() == model.Username))
+            {
+                response.AddError(nameof(model.Username), "This username is already in use.");
+                return BadRequest(response);
+            }
+            else
+            {
+                Account account = new Account
+                {
+                    Username = model.Username,
+                    Password = model.Password,
+                    Type = AccountType.Member
+                };
+                _db.Accounts.Add(account);
+                _db.SaveChanges();
+
+                RegisterResponseModel data = new RegisterResponseModel
+                {
+                    Id = account.Id,
+                    Username = account.Username
+                };
+
+                response.Data = data;
+                return Ok(response);
+            }
+        }
+
+        List<string> errors = ModelState.Values.SelectMany(x => x.Errors.Select(y => y.ErrorMessage)).ToList();
+        return BadRequest(errors);
+    }
+
+
+
+    [HttpPost("authenticate")]
+    [ProducesResponseType(200, Type = typeof(Resp<AuthenticateResponseModel>))]
+    [ProducesResponseType(400, Type = typeof(Resp<AuthenticateResponseModel>))]
+    public IActionResult Authenticate([FromBody] AuthenticateRequestModel model)
+    {
+        Resp<AuthenticateResponseModel> response = new Resp<AuthenticateResponseModel>();
+        model.Username = model.Username?.Trim().ToLower();
+
+        Account account = _db.Accounts.SingleOrDefault(
+            x => x.Username.ToLower() == model.Username && x.Password == model.Password);
+
+        if (account != null)
+        {
+            if (account.IsApplyment)
+            {
+                response.AddError("*", "The payment has not been completed yet.");
+                return BadRequest(response);
+            }
+            else
+            {
+                string key = _configuration["JwtOptions:Key"];
+
+                List<Claim> claims = new List<Claim>
                     {
                         new Claim("id", account.Id.ToString()),
                         new Claim("type", ((int)account.Type).ToString()),
@@ -242,20 +282,20 @@ namespace ECommerceApi.API.Controllers
                         new Claim(ClaimTypes.Role, account.Type.ToString()),
                     };
 
-                    string token = TokenService.GenerateToken(key, DateTime.Now.AddDays(30), claims);
+                string token = TokenService.GenerateToken(key, DateTime.Now.AddDays(30), claims);
 
-                    AuthenticateResponseModel data = new AuthenticateResponseModel { Token = token };
-                    response.Data = data;
+                AuthenticateResponseModel data = new AuthenticateResponseModel { Token = token };
+                response.Data = data;
 
-                    return Ok(response);
-                }
+                return Ok(response);
             }
-            else
-            {
-                response.AddError("*", "Username or password does not match.");
-                return BadRequest(response);
-            }
+        }
+        else
+        {
+            response.AddError("*", "Username or password does not match.");
+            return BadRequest(response);
         }
     }
 }
+
 

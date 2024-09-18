@@ -28,4 +28,15 @@ namespace ECommerceApi.Core.Models
         [StringLength(1000)]
         public string Description { get; set; }
     }
+
+
+
+    public class CategoryUpdateModel
+    {
+        [Required]
+        [StringLength(30)]
+        public string Name { get; set; }
+        [StringLength(1000)]
+        public string Description { get; set; }
+    }
 }
