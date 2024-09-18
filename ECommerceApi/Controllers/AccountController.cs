@@ -3,6 +3,7 @@ using ECommerceApi.API.DataAccess;
 using ECommerceApi.API.Entites;
 using ECommerceApi.Core.Controllers;
 using ECommerceApi.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.IdentityModel.Tokens;
@@ -17,6 +18,7 @@ namespace ECommerceApi.API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
+    [Authorize(Roles = "Admin")]
     public class AccountController : ControllerBase
     {
         private DatabaseContext _db;
@@ -119,7 +121,7 @@ namespace ECommerceApi.API.Controllers
         }
 
 
-
+        [AllowAnonymous]
         [HttpPost("authenticate")]
         [ProducesResponseType(200, Type = typeof(Resp<AuthenticateResponseModel>))]
         [ProducesResponseType(400, Type = typeof(Resp<AuthenticateResponseModel>))]
