@@ -143,6 +143,24 @@ namespace ECommerceApi.API.Controllers
 
             return Ok(response);
         }
+
+
+        [HttpDelete("delete/{id}")]
+        [ProducesResponseType(200, Type = typeof(Resp<object>))]
+        [ProducesResponseType(404, Type = typeof(Resp<object>))]
+        public IActionResult Delete([FromRoute] int id)
+        {
+            Resp<object> response = new Resp<object>();
+            Category category = _db.Categories.Find(id);
+
+            if (category == null)
+                return NotFound();
+
+            _db.Categories.Remove(category);
+            _db.SaveChanges();
+
+            return Ok(response);
+        }
     }
 }
 
