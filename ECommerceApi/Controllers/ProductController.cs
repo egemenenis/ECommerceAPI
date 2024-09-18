@@ -4,17 +4,18 @@ using ECommerceApi.Core.Controllers;
 using ECommerceApi.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerceApi.API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    [Authorize(Roles = "Admin")]
-    public class CategoryController : ControllerBase
+    [Authorize(Roles = "Admin, Merchant")]
+    public class ProductController : ControllerBase
     {
         private DatabaseContext _db;
         private IConfiguration _configuration;
-        public CategoryController(DatabaseContext databaseContext, IConfiguration configuration)
+        public ProductController(DatabaseContext databaseContext, IConfiguration configuration)
         {
             _db = databaseContext;
         }
@@ -64,33 +65,51 @@ namespace ECommerceApi.API.Controllers
         [HttpPost("create")]
         [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
         [ProducesResponseType(400, Type = typeof(Resp<CategoryModel>))]
-        public IActionResult Create([FromBody] CategoryCreateModel model)
+        public IActionResult Create([FromBody] ProductCreateModel model)
         {
-            Resp<CategoryModel> response = new Resp<CategoryModel>();
-            string categoryName = model.Name?.Trim().ToLower();
+            Resp<ProductModel> response = new Resp<ProductModel>();
+            string productName = model.Name?.Trim().ToLower();
 
-            if (_db.Categories.Any(x => x.Name.ToLower() == categoryName))
+            if (_db.Products.Any(x => x.Name.ToLower() == productName))
             {
-                response.AddError(nameof(model.Name), "This category name already exists.");
+                response.AddError(nameof(model.Name), "This product name is already available.");
                 return BadRequest(response);
             }
             else
             {
-                Category category = new Category
+                int accountId = int.Parse(HttpContext.User.FindFirst("id").Value);
+
+                Product product = new Product
                 {
                     Name = model.Name,
-                    Description = model.Description
+                    Description = model.Description,
+                    UnitPrice = model.UnitPrice,
+                    DiscountedPrice = model.DiscountedPrice,
+                    Discountinued = model.Discountinued,
+                    CategoryId = model.CategoryId,
+                    AccountId = accountId
                 };
 
-                _db.Categories.Add(category);
+                _db.Products.Add(product);
                 _db.SaveChanges();
 
+                product = _db.Products
+                    .Include(x => x.Category)
+                    .Include(x => x.Account)
+                    .SingleOrDefault(x => x.Id == product.Id);
 
-                CategoryModel data = new CategoryModel
+                ProductModel data = new ProductModel
                 {
-                    Id = category.Id,
-                    Name = category.Name,
-                    Description = category.Description
+                    Id = product.Id,
+                    Name = product.Name,
+                    Description = product.Description,
+                    UnitPrice = model.UnitPrice,
+                    DiscountedPrice = model.DiscountedPrice,
+                    Discountinued = model.Discountinued,
+                    CategoryId = model.CategoryId,
+                    AccountId = product.AccountId,
+                    CategoryName = product.Category.Name,
+                    AccountCompanyName = product.Account.CompanyName
                 };
 
                 response.Data = data;
@@ -155,3 +174,5 @@ namespace ECommerceApi.API.Controllers
         }
     }
 }
+
+

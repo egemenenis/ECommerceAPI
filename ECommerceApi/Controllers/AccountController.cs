@@ -26,6 +26,7 @@ namespace ECommerceApi.API.Controllers
         public AccountController(DatabaseContext databaseContext, IConfiguration configuration)
         {
             _db = databaseContext;
+            _configuration = configuration;
         }
 
 
