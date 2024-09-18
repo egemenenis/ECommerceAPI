@@ -63,8 +63,8 @@ namespace ECommerceApi.API.Controllers
 
 
         [HttpPost("create")]
-        [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
-        [ProducesResponseType(400, Type = typeof(Resp<CategoryModel>))]
+        [ProducesResponseType(200, Type = typeof(Resp<ProductModel>))]
+        [ProducesResponseType(400, Type = typeof(Resp<ProductModel>))]
         public IActionResult Create([FromBody] ProductCreateModel model)
         {
             Resp<ProductModel> response = new Resp<ProductModel>();
