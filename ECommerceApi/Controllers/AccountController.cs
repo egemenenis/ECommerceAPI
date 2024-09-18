@@ -28,6 +28,46 @@ namespace ECommerceApi.API.Controllers
         }
 
 
+        [HttpGet("list")]
+        [ProducesResponseType(200, Type = typeof(Resp<List<CategoryModel>>))]
+        public IActionResult List()
+        {
+            Resp<List<CategoryModel>> response = new Resp<List<CategoryModel>>();
+
+            List<CategoryModel> list = _db.Categories.Select(
+                x => new CategoryModel { Id = x.Id, Name = x.Name, Description = x.Description }).ToList();
+
+            response.Data = list;
+
+            return Ok(response);
+        }
+
+
+        [HttpGet("get/{id}")]
+        [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
+        public IActionResult GetById([FromRoute] int id)
+        {
+            Resp<CategoryModel> response = new Resp<CategoryModel>();
+
+            Category category = _db.Categories.SingleOrDefault(x => x.Id == id);
+            CategoryModel data = null;
+
+            if (category != null)
+            {
+                data = new CategoryModel
+                {
+                    Id = category.Id,
+                    Name = category.Name,
+                    Description = category.Description
+                };
+            }
+
+            response.Data = data;
+
+            return Ok(response);
+        }
+
+
         [HttpPost("create")]
         [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
         [ProducesResponseType(400, Type = typeof(Resp<CategoryModel>))]
