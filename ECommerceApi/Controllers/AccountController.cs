@@ -15,6 +15,58 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ECommerceApi.API.Controllers
 {
+
+    [ApiController]
+    [Route("[controller]")]
+    public class CategoryController : ControllerBase
+    {
+        private DatabaseContext _db;
+        private IConfiguration _configuration;
+        public CategoryController(DatabaseContext databaseContext, IConfiguration configuration)
+        {
+            _db = databaseContext;
+        }
+
+
+        [HttpPost("create")]
+        [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
+        [ProducesResponseType(400, Type = typeof(Resp<CategoryModel>))]
+        public IActionResult Create([FromBody] CategoryCreateModel model)
+        {
+            Resp<CategoryModel> response = new Resp<CategoryModel>();
+            string categoryName = model.Name?.Trim().ToLower();
+
+            if (_db.Categories.Any(x => x.Name.ToLower() == categoryName))
+            {
+                response.AddError(nameof(model.Name), "This category name already exists.");
+                return BadRequest(response);
+            }
+            else
+            {
+                Category category = new Category
+                {
+                    Name = model.Name,
+                    Description = model.Description
+                };
+
+                _db.Categories.Add(category);
+                _db.SaveChanges();
+
+
+                CategoryModel data = new CategoryModel
+                {
+                    Id = category.Id,
+                    Name = category.Name,
+                    Description = category.Description
+                };
+
+                response.Data = data;
+                return Ok(response);
+            }
+        }
+    }
+
+
     [ApiController]
     [Route("[controller]")]
     public class AccountController : ControllerBase
@@ -29,6 +81,7 @@ namespace ECommerceApi.API.Controllers
 
         [HttpPost("merchant/applyment")]
         [ProducesResponseType(200, Type = typeof(ApplymentAccountResponseModel))]
+        [ProducesResponseType(400, Type = typeof(Resp<ApplymentAccountResponseModel>))]
         public IActionResult Applyment([FromBody] ApplymentAccountRequestModel model)
         {
             Resp<ApplymentAccountResponseModel> response = new Resp<ApplymentAccountResponseModel>();
