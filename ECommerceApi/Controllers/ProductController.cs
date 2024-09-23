@@ -242,12 +242,15 @@ namespace ECommerceApi.API.Controllers
         public IActionResult Delete([FromRoute] int id)
         {
             Resp<object> response = new Resp<object>();
-            Category category = _db.Categories.Find(id);
+            int accountId = int.Parse(HttpContext.User.FindFirst("id").Value);
+            string role = HttpContext.User.FindFirst(ClaimTypes.Role).Value;
 
-            if (category == null)
+            Product product = _db.Products.SingleOrDefault(x => x.Id == id && (role == "Admin" || (role != "Admin" && x.AccountId == accountId)));
+
+            if (product == null)
                 return NotFound();
 
-            _db.Categories.Remove(category);
+            _db.Products.Remove(product);
             _db.SaveChanges();
 
             return Ok(response);
