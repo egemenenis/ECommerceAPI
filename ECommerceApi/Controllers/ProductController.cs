@@ -5,6 +5,7 @@ using ECommerceApi.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ECommerceApi.API.Controllers
 {
@@ -179,35 +180,54 @@ namespace ECommerceApi.API.Controllers
 
 
         [HttpPut("update/{id}")]
-        [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
-        [ProducesResponseType(400, Type = typeof(Resp<CategoryModel>))]
-        [ProducesResponseType(404, Type = typeof(Resp<CategoryModel>))]
-        public IActionResult Update([FromRoute] int id, [FromBody] CategoryUpdateModel model)
+        [ProducesResponseType(200, Type = typeof(Resp<ProductModel>))]
+        [ProducesResponseType(400, Type = typeof(Resp<ProductModel>))]
+        [ProducesResponseType(404, Type = typeof(Resp<ProductModel>))]
+        public IActionResult Update([FromRoute] int id, [FromBody] ProductUpdateModel model)
         {
-            Resp<CategoryModel> response = new Resp<CategoryModel>();
-            Category category = _db.Categories.Find(id);
+            Resp<ProductModel> response = new Resp<ProductModel>();
+            int accountId = int.Parse(HttpContext.User.FindFirst("id").Value);
+            string role = HttpContext.User.FindFirst(ClaimTypes.Role).Value;
 
-            if (category == null)
+            Product product = _db.Products.SingleOrDefault(x => x.Id == id && (role == "Admin" || (role != "Admin" && x.AccountId == accountId)));
+
+            if (product == null)
                 return NotFound(response);
 
-            string categoryName = model.Name?.Trim().ToLower();
+            string productName = model.Name?.Trim().ToLower();
 
-            if (_db.Categories.Any(x => x.Name.ToLower() == categoryName && x.Id != id))
+            if (_db.Products.Any(x => x.Name.ToLower() == productName && x.Id != id && (role == "Admin" || (role != "Admin" && x.AccountId == accountId))))
             {
-                response.AddError(nameof(model.Name), "This category name already exists.");
+                response.AddError(nameof(model.Name), "This product name already exists.");
                 return BadRequest(response);
             }
 
-            category.Name = model.Name;
-            category.Description = model.Description;
+            product.Name = model.Name;
+            product.Description = model.Description;
+            product.UnitPrice = model.UnitPrice;
+            product.DiscountedPrice = model.DiscountedPrice;
+            product.Discountinued = model.Discountinued;
+            product.CategoryId = model.CategoryId;
 
             _db.SaveChanges();
 
-            CategoryModel data = new CategoryModel
+            product = _db.Products
+                .Include(x => x.Category)
+                .Include(x => x.Account)
+                .SingleOrDefault(x => x.Id == id);
+
+            ProductModel data = new ProductModel
             {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                UnitPrice = model.UnitPrice,
+                DiscountedPrice = model.DiscountedPrice,
+                Discountinued = model.Discountinued,
+                CategoryId = model.CategoryId,
+                AccountId = product.AccountId,
+                CategoryName = product.Category.Name,
+                AccountCompanyName = product.Account.CompanyName
             };
 
             response.Data = data;
