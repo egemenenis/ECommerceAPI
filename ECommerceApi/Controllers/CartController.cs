@@ -55,6 +55,48 @@ namespace ECommerceApi.API.Controllers
             return Ok(response);
         }
 
+
+        [HttpPost("AddToCart/{accountId}")]
+        public IActionResult AddToCart([FromRoute] int accountId, [FromBody] AddToCartModel model)
+        {
+            Resp<CartModel> response = new Resp<CartModel>();
+            Cart cart = _db.Carts
+                .Include(x => x.CartProducts)
+                .SingleOrDefault(x => x.AccountId == accountId && x.IsClosed == false);
+
+            if (cart == null)
+            {
+                cart = new Cart
+                {
+                    AccountId = accountId,
+                    Date = System.DateTime.Now,
+                    IsClosed = false,
+                    CartProducts = new List<CartProduct>()
+                };
+
+                _db.Carts.Add(cart);
+            }
+
+            Product product = _db.Products.Find(model.ProductId);
+
+            cart.CartProducts.Add(new CartProduct
+            {
+                CartId = cart.Id,
+                ProductId = product.Id,
+                UnitPrice = product.UnitPrice,
+                DiscountedPrice = product.DiscountedPrice,
+                Quantity = model.Quantity
+            });
+
+            _db.SaveChanges();
+
+            CartModel data = CartToCartModel(cart);
+            response.Data = data;
+
+            return Ok(response);
+        }
+
+
         private static CartModel CartToCartModel(Cart cart)
         {
             CartModel data = new CartModel
