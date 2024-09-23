@@ -18,17 +18,35 @@ namespace ECommerceApi.API.Controllers
         public ProductController(DatabaseContext databaseContext, IConfiguration configuration)
         {
             _db = databaseContext;
+            _configuration = configuration;
         }
 
 
         [HttpGet("list")]
-        [ProducesResponseType(200, Type = typeof(Resp<List<CategoryModel>>))]
+        [ProducesResponseType(200, Type = typeof(Resp<List<ProductModel>>))]
         public IActionResult List()
         {
-            Resp<List<CategoryModel>> response = new Resp<List<CategoryModel>>();
+            Resp<List<ProductModel>> response = new Resp<List<ProductModel>>();
 
-            List<CategoryModel> list = _db.Categories.Select(
-                x => new CategoryModel { Id = x.Id, Name = x.Name, Description = x.Description }).ToList();
+            //int accountId = int.Parse(HttpContext.User.FindFirst("id").Value);
+
+            List<ProductModel> list = _db.Products
+                .Include(x => x.Category)
+                .Include(x => x.Account)
+                //.Where(x =/*> x.AccountId == accountId)*/
+                .Select(x => new ProductModel
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Description = x.Description,
+                    UnitPrice = x.UnitPrice,
+                    DiscountedPrice = x.DiscountedPrice,
+                    Discountinued = x.Discountinued,
+                    CategoryId = x.CategoryId,
+                    AccountId = x.AccountId,
+                    CategoryName = x.Category.Name,
+                    AccountCompanyName = x.Account.CompanyName
+                }).ToList();
 
             response.Data = list;
 
@@ -36,24 +54,62 @@ namespace ECommerceApi.API.Controllers
         }
 
 
-        [HttpGet("get/{id}")]
-        [ProducesResponseType(200, Type = typeof(Resp<CategoryModel>))]
-        [ProducesResponseType(404, Type = typeof(Resp<CategoryModel>))]
-        public IActionResult GetById([FromRoute] int id)
+        [HttpGet("list/{accountId}")]
+        [ProducesResponseType(200, Type = typeof(Resp<List<ProductModel>>))]
+        public IActionResult ListByAccountId([FromRoute] int accountId)
         {
-            Resp<CategoryModel> response = new Resp<CategoryModel>();
+            Resp<List<ProductModel>> response = new Resp<List<ProductModel>>();
 
-            Category category = _db.Categories.SingleOrDefault(x => x.Id == id);
-            CategoryModel data = null;
+            //int accountId = int.Parse(HttpContext.User.FindFirst("id").Value);
 
-            if (category == null)
+            List<ProductModel> list = _db.Products
+                .Include(x => x.Category)
+                .Include(x => x.Account)
+                //.Where(x =/*> x.AccountId == accountId)*/
+                .Select(x => new ProductModel
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Description = x.Description,
+                    UnitPrice = x.UnitPrice,
+                    DiscountedPrice = x.DiscountedPrice,
+                    Discountinued = x.Discountinued,
+                    CategoryId = x.CategoryId,
+                    AccountId = x.AccountId,
+                    CategoryName = x.Category.Name,
+                    AccountCompanyName = x.Account.CompanyName
+                }).ToList();
+
+            response.Data = list;
+
+            return Ok(response);
+        }
+
+
+        [HttpGet("get/{productId}")]
+        [ProducesResponseType(200, Type = typeof(Resp<ProductModel>))]
+        [ProducesResponseType(404, Type = typeof(Resp<ProductModel>))]
+        public IActionResult GetById([FromRoute] int productId)
+        {
+            Resp<ProductModel> response = new Resp<ProductModel>();
+
+            Product product = _db.Products.SingleOrDefault(x => x.Id == productId);
+
+            if (product == null)
                 return NotFound(response);
 
-            data = new CategoryModel
+            ProductModel data = new ProductModel
             {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                UnitPrice = product.UnitPrice,
+                DiscountedPrice = product.DiscountedPrice,
+                Discountinued = product.Discountinued,
+                CategoryId = product.CategoryId,
+                AccountId = product.AccountId,
+                CategoryName = product.Category.Name,
+                AccountCompanyName = product.Account.CompanyName
             };
 
             response.Data = data;
@@ -96,7 +152,8 @@ namespace ECommerceApi.API.Controllers
                 product = _db.Products
                     .Include(x => x.Category)
                     .Include(x => x.Account)
-                    .SingleOrDefault(x => x.Id == product.Id);
+                    .SingleOrDefault(x => x.Id == product
+                    .Id);
 
                 ProductModel data = new ProductModel
                 {

@@ -17,6 +17,7 @@ namespace ECommerceApi.API.Controllers
         public CategoryController(DatabaseContext databaseContext, IConfiguration configuration)
         {
             _db = databaseContext;
+            _configuration = configuration;
         }
 
 
