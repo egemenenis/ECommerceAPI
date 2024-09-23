@@ -93,7 +93,10 @@ namespace ECommerceApi.API.Controllers
         {
             Resp<ProductModel> response = new Resp<ProductModel>();
 
-            Product product = _db.Products.SingleOrDefault(x => x.Id == productId);
+            Product product = _db.Products
+                .Include(x => x.Category)
+                .Include(x => x.Account)
+                .SingleOrDefault(x => x.Id == productId);
 
             if (product == null)
                 return NotFound(response);
