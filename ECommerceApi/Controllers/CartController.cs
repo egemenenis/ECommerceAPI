@@ -4,6 +4,7 @@ using ECommerceApi.Core.Controllers;
 using ECommerceApi.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerceApi.API.Controllers
 {
@@ -30,7 +31,9 @@ namespace ECommerceApi.API.Controllers
         public IActionResult GetOrCreate([FromRoute] int accountId)
         {
             Resp<CartModel> response = new Resp<CartModel>();
-            Cart cart = _db.Carts.SingleOrDefault(x => x.AccountId == accountId && x.IsClosed == false);
+            Cart cart = _db.Carts
+                .Include(x => x.CartProducts)
+                .SingleOrDefault(x => x.AccountId == accountId && x.IsClosed == false);
 
             if (cart == null)
             {
@@ -38,23 +41,45 @@ namespace ECommerceApi.API.Controllers
                 {
                     AccountId = accountId,
                     Date = System.DateTime.Now,
-                    IsClosed = false
+                    IsClosed = false,
+                    CartProducts = new List<CartProduct>()
                 };
 
                 _db.Carts.Add(cart);
                 _db.SaveChanges();
             }
 
+            CartModel data = CartToCartModel(cart);
+
+            response.Data = data;
+            return Ok(response);
+        }
+
+        private static CartModel CartToCartModel(Cart cart)
+        {
             CartModel data = new CartModel
             {
                 Id = cart.Id,
                 AccountId = cart.AccountId,
                 Date = cart.Date,
-                IsClosed = cart.IsClosed
+                IsClosed = cart.IsClosed,
+                CartProducts = new List<CartProductModel>()
             };
 
-            response.Data = data;
-            return Ok(response);
+            foreach (CartProduct cartProduct in cart.CartProducts)
+            {
+                data.CartProducts.Add(new CartProductModel
+                {
+                    Id = cartProduct.Id,
+                    CartId = cartProduct.Id,
+                    UnitPrice = cartProduct.UnitPrice,
+                    DiscountedPrice = cartProduct.DiscountedPrice,
+                    Quantity = cartProduct.Quantity,
+                    ProductId = cartProduct.ProductId.Value
+                });
+            }
+
+            return data;
         }
     }
 }
