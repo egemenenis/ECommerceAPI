@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace ECommerceApi.Core.Models
 {
+
     public class CartModel
     {
         public int Id { get; set; }

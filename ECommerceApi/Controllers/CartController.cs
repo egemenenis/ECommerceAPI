@@ -11,6 +11,29 @@ namespace ECommerceApi.API.Controllers
     [ApiController]
     [Route("[controller]")]
     [Authorize(Roles = "Admin")]
+    public class PaymentController : ControllerBase
+    {
+        private DatabaseContext _db;
+        private IConfiguration _configuration;
+
+        public PaymentController(DatabaseContext databaseContext, IConfiguration configuration)
+        {
+            _db = databaseContext;
+            _configuration = configuration;
+        }
+
+
+        //[HttpPost("Pay/{cartid}")]
+        //public IActionResult Pay([FromRoute] int cartid, [FromBody] PayModel model)
+        //{
+
+        //}
+    }
+
+
+    [ApiController]
+    [Route("[controller]")]
+    [Authorize(Roles = "Admin")]
     public class CartController : ControllerBase
     {
         private DatabaseContext _db;
