@@ -32,26 +32,29 @@ namespace ECommerceApi.API.Controllers
         [HttpPost("Pay/{cartid}")]
         public IActionResult Pay([FromRoute] int cartid, [FromBody] PayModel model)
         {
-            Cart cart = _db.Carts.Include(x => x.CartProducts).SingleOrDefault(x => x.Id ==cartid);
-            Payment payment = null;
+            Resp<PaymentModel> result = new Resp<PaymentModel>();
+
+            Cart cart = _db.Carts.Include(x => x.CartProducts).SingleOrDefault(x => x.Id == cartid);
+
             string paymentApiEndpoint = _configuration["PaymentAPI:Endpoint"];
 
-            if (cart != null)
+            if (!cart.IsClosed)
             {
                 decimal totalPrice = model.TotalPriceOverride ?? cart.CartProducts.Sum(x => x.Quantity * x.DiscountedPrice);
 
                 HttpClient client = new HttpClient();
 
                 AuthenticateRequestModel authRequestModel = new AuthenticateRequestModel { Username = "egemenenis", Password = "123123" };
-                StringContent content = 
+                StringContent content =
                     new StringContent(JsonSerializer.Serialize(authRequestModel), Encoding.UTF8, "application/json");
 
-               HttpResponseMessage authResponse = client.PostAsync($"{paymentApiEndpoint}/pay/authenticate", content).Result;
+                HttpResponseMessage authResponse = client.PostAsync($"{paymentApiEndpoint}/pay/authenticate", content).Result;
 
                 if (authResponse.StatusCode == System.Net.HttpStatusCode.OK)
                 {
                     string authJsonContent = authResponse.Content.ReadAsStringAsync().Result;
-                    AuthResponseModel authResponseModel = JsonSerializer.Deserialize<AuthResponseModel>(authJsonContent, 
+                    AuthResponseModel authResponseModel =
+                        JsonSerializer.Deserialize<AuthResponseModel>(authJsonContent,
                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                     string token = authResponseModel.Token;
@@ -65,17 +68,65 @@ namespace ECommerceApi.API.Controllers
                         TotalPrice = totalPrice,
                     };
 
-                    StringContent paymentContent = 
+                    StringContent paymentContent =
                         new StringContent(JsonSerializer.Serialize(paymentRequestModel), Encoding.UTF8, "application/json");
 
-                    client.DefaultRequestHeaders.Authorization = 
+                    client.DefaultRequestHeaders.Authorization =
                         new AuthenticationHeaderValue(JwtBearerDefaults.AuthenticationScheme, token);
 
                     HttpResponseMessage paymentResponse = client.PostAsync($"{paymentApiEndpoint}/Pay/Payment", paymentContent).Result;
 
                     if (paymentResponse.StatusCode == System.Net.HttpStatusCode.OK)
                     {
+                        string paymentJsonContent = paymentResponse.Content.ReadAsStringAsync().Result;
 
+                        PaymentResponseModel paymentResponseModel =
+                            JsonSerializer.Deserialize<PaymentResponseModel>(paymentJsonContent,
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                        if (paymentResponseModel.Result == "ok")
+                        {
+                            string transactionId = paymentResponseModel.TransactionId;
+
+                            Payment payment = new Payment
+                            {
+                                CartId = cartid,
+                                AccountId = cart.AccountId,
+                                InvoiceAddress = model.InvoiceAddress,
+                                ShippedAddress = model.ShippedAddress,
+                                Type = model.Type,
+                                TransactionId = transactionId,
+                                Date = DateTime.Now,
+                                IsCompleted = true,
+                                TotalPrice = totalPrice
+                            };
+                            cart.IsClosed = true;
+                            _db.Payments.Add(payment);
+                            _db.SaveChanges();
+
+                            PaymentModel data = new PaymentModel
+                            {
+                                Id = payment.Id,
+                                AccountId = payment.AccountId,
+                                CartId = payment.CartId,
+                                Date = payment.Date,
+                                InvoiceAddress = payment.InvoiceAddress,
+                                IsCompleted = payment.IsCompleted,
+                                ShippedAddress = payment.ShippedAddress,
+                                TotalPrice = payment.TotalPrice,
+                                Type = payment.Type
+                            };
+
+                            result.Data = data;
+                            return Ok(result);
+                        }
+                        else
+                        {
+                            Resp<string> paymentOkResult = new Resp<string>();
+                            paymentOkResult.AddError("payment", "Payment could not be received.");
+
+                            return BadRequest(paymentOkResult);
+                        }
                     }
                     else
                     {
@@ -86,7 +137,7 @@ namespace ECommerceApi.API.Controllers
                     }
                 }
                 else
-                { 
+                {
                     Resp<string> authResult = new Resp<string>();
                     authResult.AddError("auth", authResponse.Content.ReadAsStringAsync().Result);
 
@@ -94,6 +145,34 @@ namespace ECommerceApi.API.Controllers
                 }
 
             }
+            else
+            {
+                Payment payment = _db.Payments.SingleOrDefault(x => x.CartId == cartid);
+
+                if (payment == null)
+                {
+                    result.AddError("The cart is closed but the payment is shown to have been made. " +
+                        "A possible problem was detected. Please contact the system provider. CartId:  {cartid}");
+
+                    return BadRequest(result);
+                }
+
+                PaymentModel data = new PaymentModel
+                {
+                    Id = payment.Id,
+                    AccountId = payment.AccountId,
+                    CartId = payment.CartId,
+                    Date = payment.Date,
+                    InvoiceAddress = payment.InvoiceAddress,
+                    IsCompleted = payment.IsCompleted,
+                    ShippedAddress = payment.ShippedAddress,
+                    TotalPrice = payment.TotalPrice,
+                    Type = payment.Type
+                };
+                result.Data = data;
+                return Ok(result);
+            }
+            
         }
     }
 
