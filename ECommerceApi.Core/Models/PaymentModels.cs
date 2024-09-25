@@ -18,7 +18,7 @@ namespace ECommerceApi.Core.Models
         [StringLength(3)]
         [RegularExpression(@"^\d{3}$")]
         public string CVV { get; set; }
-        public decimal TotalPriceOverride { get; set; }
+        public decimal? TotalPriceOverride { get; set; }
         [StringLength(25)]
         public string Type { get; set; }
         [Required]
